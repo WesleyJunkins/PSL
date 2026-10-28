@@ -5,11 +5,15 @@ use std::sync::atomic::{AtomicBool, Ordering};
 
 static STOP_REQUESTED: AtomicBool = AtomicBool::new(false);
 
+/// A C signal handler, or `None` for `SIG_DFL` (the null pointer). `Option` of a
+/// function pointer has the same representation as a nullable C function pointer.
+#[cfg(unix)]
+type Handler = Option<extern "C" fn(i32)>;
+
 #[cfg(unix)]
 extern "C" {
-    /// `sig_t signal(int, sig_t)`; the handler is passed as an address so that
-    /// `SIG_DFL` (0) can be passed through the same declaration.
-    fn signal(sig: i32, handler: usize) -> usize;
+    /// `sig_t signal(int, sig_t)`.
+    fn signal(sig: i32, handler: Handler) -> Handler;
 }
 
 /// Restore the default SIGPIPE disposition so `psl echo | head` ends quietly instead of
@@ -18,7 +22,7 @@ pub fn default_sigpipe() {
     #[cfg(unix)]
     // SAFETY: installing SIG_DFL (0) for SIGPIPE (13) has no preconditions.
     unsafe {
-        signal(13, 0);
+        signal(13, None);
     }
 }
 
@@ -32,8 +36,8 @@ pub fn install() {
     #[cfg(unix)]
     // SAFETY: `signal` is async-signal-safe to install, and the handler only touches an atomic.
     unsafe {
-        signal(2, on_signal as usize);
-        signal(15, on_signal as usize);
+        signal(2, Some(on_signal));
+        signal(15, Some(on_signal));
     }
 }
 
