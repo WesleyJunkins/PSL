@@ -1,0 +1,41 @@
+# psl/moving-average: causal moving average over the last N samples.
+
+node "moving-average" {
+  kind        = module
+  version     = "0.1.0"
+  description = "Causal moving average over the last N samples of every channel"
+  author      = "PSL"
+  license     = "MIT"
+
+  runtime python {
+    entry  = "main.py"
+    python = ">=3.11"
+  }
+
+  input "in" {
+    type        = signal
+    description = "Signal to smooth"
+    multiple    = false
+    channels    = any
+    modality    = any
+    dtype       = any
+    srate       = any
+  }
+
+  output "out" {
+    type        = signal
+    description = "Smoothed signal, one chunk per input chunk; same channels and rate as the input (integer inputs become f32)"
+    channels    = any
+    modality    = any
+  }
+
+  param "window" {
+    type        = integer
+    description = "Number of samples averaged (the current sample and the window-1 before it)"
+    default     = 5
+    min         = 1
+    max         = 100000
+    mutable     = true
+    unit        = "samples"
+  }
+}

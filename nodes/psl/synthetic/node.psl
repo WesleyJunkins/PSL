@@ -1,0 +1,84 @@
+# psl/synthetic: a signal source that needs no hardware.
+
+node "synthetic" {
+  kind        = input
+  version     = "0.1.0"
+  description = "Synthetic signal generator: a recognisable ECG, a sine or white noise"
+  author      = "PSL"
+  license     = "MIT"
+
+  runtime python {
+    entry  = "main.py"
+    python = ">=3.11"
+  }
+
+  output "out" {
+    type        = signal
+    description = "Generated float32 signal, one chunk every chunk_ms; the same waveform on every channel"
+    channels    = any
+    modality    = any
+  }
+
+  param "waveform" {
+    type        = enum
+    description = "Shape of the generated signal"
+    default     = "ecg"
+    values      = ["ecg", "sine", "noise"]
+  }
+
+  param "srate" {
+    type        = number
+    description = "Nominal sample rate"
+    default     = 250
+    min         = 1
+    max         = 100000
+    unit        = "Hz"
+  }
+
+  param "channels" {
+    type        = list
+    of          = string
+    description = "Channel labels; one channel per label"
+    default     = ["ECG"]
+  }
+
+  param "chunk_ms" {
+    type        = integer
+    description = "Chunk period"
+    default     = 20
+    min         = 1
+    max         = 1000
+    unit        = "ms"
+  }
+
+  param "amplitude" {
+    type        = number
+    description = "Peak amplitude (R peak for ecg, peak for sine, standard deviation for noise)"
+    default     = 1.0
+    mutable     = true
+  }
+
+  param "frequency" {
+    type        = number
+    description = "Sine frequency"
+    default     = 1.0
+    min         = 0
+    unit        = "Hz"
+  }
+
+  param "bpm" {
+    type        = number
+    description = "Heart rate of the ecg waveform"
+    default     = 60
+    min         = 1
+    max         = 600
+    mutable     = true
+    unit        = "bpm"
+  }
+
+  param "seed" {
+    type        = integer
+    description = "Random seed for the noise waveform"
+    default     = 0
+  }
+}

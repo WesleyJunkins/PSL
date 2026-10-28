@@ -1,0 +1,9 @@
+workspace "hello" {
+  psl = "0.1"
+}
+
+require "psl/synthetic"      { version = "^0.1" }
+require "psl/moving-average" { version = "^0.1" }
+require "psl/scale"          { version = "^0.1" }
+require "psl/print"          { version = "^0.1" }
+require "psl/csv-writer"     { version = "^0.1" }

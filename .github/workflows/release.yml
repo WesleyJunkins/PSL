@@ -1,0 +1,122 @@
+# Builds the psl binary for macOS and Linux and publishes a GitHub release.
+#
+#   git tag v0.1.0 && git push origin v0.1.0      -> tests, builds, publishes the release
+#   Actions tab -> release -> Run workflow        -> tests and builds only (a dry run;
+#                                                     the binaries are downloadable
+#                                                     from the run page as artifacts)
+#
+# The tag must equal the version in core/Cargo.toml. Asset names carry no
+# version so that .../releases/latest/download/<asset> always resolves.
+name: release
+
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  test:
+    uses: ./.github/workflows/ci.yml
+
+  build:
+    needs: test
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-22.04
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-22.04-arm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check that the tag matches core/Cargo.toml
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          crate=$(sed -n 's/^version *= *"\(.*\)".*/\1/p' core/Cargo.toml | head -1)
+          tag=${GITHUB_REF_NAME#v}
+          if [ "$crate" != "$tag" ]; then
+            echo "tag $GITHUB_REF_NAME does not match core/Cargo.toml version $crate" >&2
+            exit 1
+          fi
+
+      - name: Rust toolchain and target
+        run: |
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          fi
+          rustup toolchain install stable --profile minimal
+          rustup default stable
+          rustup target add ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --locked --target ${{ matrix.target }} --manifest-path core/Cargo.toml
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          tar -C "core/target/${{ matrix.target }}/release" -czf "dist/psl-${{ matrix.target }}.tar.gz" psl
+          ls -l dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: psl-${{ matrix.target }}
+          path: dist/*.tar.gz
+          if-no-files-found: error
+
+  release:
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: |
+          sha256sum *.tar.gz > SHA256SUMS
+          cat SHA256SUMS
+
+      - name: Publish the GitHub release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+        run: |
+          notes="$RUNNER_TEMP/notes.md"
+          cat > "$notes" <<NOTES
+          Install or update with one command (macOS and Linux):
+
+              curl -fsSL https://raw.githubusercontent.com/$REPO/main/install.sh | sh
+
+          Or download the file for your machine below, unpack it and put \`psl\` on your PATH:
+
+          | File | Machine |
+          |------|---------|
+          | psl-aarch64-apple-darwin.tar.gz | macOS, Apple Silicon |
+          | psl-x86_64-apple-darwin.tar.gz | macOS, Intel |
+          | psl-x86_64-unknown-linux-gnu.tar.gz | Linux, x86_64 |
+          | psl-aarch64-unknown-linux-gnu.tar.gz | Linux, arm64 |
+
+          \`SHA256SUMS\` lists the checksum of each file. On macOS, a file saved by a browser is quarantined; run \`xattr -d com.apple.quarantine psl\` before the first use. The binary is self-contained: \`psl init\` in any folder sets up a workspace with the Python SDK and the first-party nodes.
+          NOTES
+          if gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1; then
+            gh release upload "$GITHUB_REF_NAME" --clobber dist/*
+          else
+            gh release create "$GITHUB_REF_NAME" --title "psl $GITHUB_REF_NAME" \
+              --notes-file "$notes" --generate-notes dist/*
+          fi

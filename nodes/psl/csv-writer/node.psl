@@ -1,0 +1,35 @@
+# psl/csv-writer: one CSV row per sample.
+
+node "csv-writer" {
+  kind        = output
+  version     = "0.1.0"
+  description = "Writes a signal to a CSV file, one row per sample with its session time in ns"
+  author      = "PSL"
+  license     = "MIT"
+
+  runtime python {
+    entry  = "main.py"
+    python = ">=3.11"
+  }
+
+  input "in" {
+    type        = signal
+    description = "Signal to write; header row t_ns,<label>,... then one row per sample"
+    multiple    = false
+    channels    = any
+    modality    = any
+    dtype       = any
+    srate       = any
+  }
+
+  param "path" {
+    type        = string
+    description = "Output file; parent directories are created"
+  }
+
+  param "append" {
+    type        = boolean
+    description = "Append to an existing file instead of overwriting it (no header row is written if the file is non-empty)"
+    default     = false
+  }
+}

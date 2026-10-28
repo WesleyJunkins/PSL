@@ -1,0 +1,12 @@
+# Rust
+core/target/
+target/
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+
+# PSL workspaces
+.psl/
+*.pslrec

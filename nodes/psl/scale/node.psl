@@ -1,0 +1,45 @@
+# psl/scale: out = in * gain + offset.
+
+node "scale" {
+  kind        = module
+  version     = "0.1.0"
+  description = "Linear scaling: out = in * gain + offset on every channel"
+  author      = "PSL"
+  license     = "MIT"
+
+  runtime python {
+    entry  = "main.py"
+    python = ">=3.11"
+  }
+
+  input "in" {
+    type        = signal
+    description = "Signal to scale"
+    multiple    = false
+    channels    = any
+    modality    = any
+    dtype       = any
+    srate       = any
+  }
+
+  output "out" {
+    type        = signal
+    description = "Scaled signal, one chunk per input chunk; same channels and rate as the input (integer inputs become f32)"
+    channels    = any
+    modality    = any
+  }
+
+  param "gain" {
+    type        = number
+    description = "Multiplier"
+    default     = 1.0
+    mutable     = true
+  }
+
+  param "offset" {
+    type        = number
+    description = "Added after the gain, in the signal's unit"
+    default     = 0.0
+    mutable     = true
+  }
+}

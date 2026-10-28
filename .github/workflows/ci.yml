@@ -1,0 +1,57 @@
+# Tests on every push and pull request, and as the gate before a release
+# (release.yml calls this workflow). Uses only GitHub's own actions and the
+# tools preinstalled on the runners.
+name: ci
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+  workflow_call:
+
+jobs:
+  test:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Rust toolchain (stable, with rustfmt and clippy)
+        run: |
+          if ! command -v rustup >/dev/null 2>&1; then
+            curl -fsSL https://sh.rustup.rs | sh -s -- -y --profile minimal
+            echo "$HOME/.cargo/bin" >> "$GITHUB_PATH"
+          fi
+          rustup toolchain install stable --profile default
+          rustup default stable
+          cargo --version
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Python environment with numpy (SDK, node and end-to-end tests)
+        run: |
+          python3 --version
+          python3 -m venv .venv
+          .venv/bin/python -m pip install --quiet numpy
+
+      - name: Rust core
+        run: |
+          cargo fmt --check --manifest-path core/Cargo.toml
+          cargo clippy --all-targets --manifest-path core/Cargo.toml -- -D warnings
+          cargo test --manifest-path core/Cargo.toml
+
+      - name: Python SDK
+        working-directory: sdk/python
+        run: ../../.venv/bin/python -m unittest discover -s tests
+
+      - name: First-party nodes
+        run: |
+          for d in nodes/psl/*/; do
+            echo "== $d"
+            (cd "$d" && PYTHONPATH=../../../sdk/python ../../../.venv/bin/python -m unittest discover -s tests)
+          done

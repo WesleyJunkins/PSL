@@ -1,0 +1,25 @@
+# Packaging metadata for the psl Python SDK. The core installs the SDK into a
+# workspace's .psl/venv from a wheel bundled in the psl binary; at run time the
+# supervisor simply puts this directory on PYTHONPATH, so nothing here is
+# executed by the runtime.
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "psl"
+version = "0.1.0"
+description = "Python SDK for PSL nodes: input drivers, modules and output drivers"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "MIT"}
+dependencies = ["numpy>=1.24"]
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Operating System :: OS Independent",
+]
+
+[tool.setuptools]
+packages = ["psl"]

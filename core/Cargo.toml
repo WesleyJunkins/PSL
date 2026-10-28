@@ -1,0 +1,24 @@
+[package]
+name = "psl"
+version = "0.1.0"
+edition = "2021"
+description = "PSL: a terminal-first system for physiological computing pipelines"
+license = "MIT"
+default-run = "psl"
+
+[lib]
+name = "psl"
+path = "src/lib.rs"
+
+[[bin]]
+name = "psl"
+path = "src/main.rs"
+
+# No dependencies, by design. See docs/decisions/0004-minimal-dependencies.md.
+[dependencies]
+
+[profile.release]
+opt-level = 3
+lto = true
+codegen-units = 1
+strip = true

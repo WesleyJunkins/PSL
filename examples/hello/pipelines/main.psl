@@ -1,0 +1,33 @@
+# Hello, PSL: a synthetic ECG, smoothed and rescaled, printed to the log and
+# written to a CSV file. Run with `psl run`; watch with `psl ps` and
+# `psl echo smooth.out` from another terminal.
+
+pipeline "hello" {
+  description = "Synthetic ECG → moving average → scale → print + CSV"
+}
+
+node ecg : input "psl/synthetic" {
+  waveform = "ecg"
+  srate    = 250
+  bpm      = 72
+}
+
+node smooth : module "psl/moving-average" {
+  window = 5
+}
+
+node mv : module "psl/scale" {
+  gain = 1000          # mV → uV
+}
+
+node log : output "psl/print" {
+  every = 50
+}
+
+node csv : output "psl/csv-writer" {
+  path = "out/ecg.csv"
+}
+
+map ecg.out    -> smooth.in
+map smooth.out -> mv.in
+map mv.out     -> log.in, csv.in

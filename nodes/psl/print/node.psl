@@ -1,0 +1,38 @@
+# psl/print: log what arrives, for debugging pipelines.
+
+node "print" {
+  kind        = output
+  version     = "0.1.0"
+  description = "Logs stream headers, every Nth signal chunk and every event"
+  author      = "PSL"
+  license     = "MIT"
+
+  runtime python {
+    entry  = "main.py"
+    python = ">=3.11"
+  }
+
+  input "in" {
+    type        = signal
+    description = "Signal to print; one line every `every` chunks"
+    required    = false
+    channels    = any
+    modality    = any
+    dtype       = any
+    srate       = any
+  }
+
+  input "events" {
+    type        = event
+    description = "Events to print; one line per event"
+    required    = false
+    labels      = any
+  }
+
+  param "every" {
+    type        = integer
+    description = "Log one line per this many signal chunks (per source)"
+    default     = 25
+    min         = 1
+  }
+}
