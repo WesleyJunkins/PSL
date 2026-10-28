@@ -172,6 +172,14 @@ impl ToolClient {
         Ok(r.i64_field("index").unwrap_or(0) as u16)
     }
 
+    /// Bound how long `next_frame` waits; `None` waits forever (the default).
+    pub fn set_frame_timeout(&self, timeout: Option<Duration>) -> io::Result<()> {
+        match &self.data {
+            Some(c) => c.set_read_timeout(timeout),
+            None => Ok(()),
+        }
+    }
+
     pub fn next_frame(&mut self) -> io::Result<Option<Frame>> {
         match self.data.as_mut() {
             Some(c) => read_frame(c),

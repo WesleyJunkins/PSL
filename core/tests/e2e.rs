@@ -253,7 +253,21 @@ map mv.out -> csv.in, log.in
         .iter()
         .any(|s| s.str_field("stream") == Some("ecg.out") && !s.get("header").unwrap().is_null()));
 
-    thread::sleep(Duration::from_millis(300));
+    // Keep running until the scaled stream has carried 20 chunks. A loaded CI machine
+    // produces chunks slower than real time, so count frames instead of sleeping.
+    client
+        .set_frame_timeout(Some(Duration::from_secs(30)))
+        .unwrap();
+    let mut signal_frames = 5;
+    while signal_frames < 20 {
+        let f = client
+            .next_frame()
+            .expect("frame within 30 s")
+            .expect("stream ended early");
+        if f.header.frame_type() == Some(psl::protocol::FrameType::Signal) {
+            signal_frames += 1;
+        }
+    }
     client.stop_pipeline().unwrap();
     let code = handle.join().unwrap().unwrap();
     assert_eq!(code, 0);
@@ -262,7 +276,8 @@ map mv.out -> csv.in, log.in
     let csv = fs::read_to_string(root.join("out/x.csv")).unwrap();
     let mut lines = csv.lines();
     assert_eq!(lines.next().unwrap(), "t_ns,A,B");
-    assert!(lines.count() > 20, "expected many rows");
+    let rows = lines.count();
+    assert!(rows > 20, "expected more than 20 rows, got {}", rows);
     let rec = fs::read(root.join("out/rec.pslrec")).unwrap();
     assert_eq!(&rec[..6], b"PSLREC");
     assert!(
